@@ -1,11 +1,10 @@
-```markdown
-
 🎬🌟 Chitra the Movie Recommender - Build 1.0
 Mesa School of Business - Tushar Nain
 
- ## Overview
 
-Chitra is a Streamlit web application that helps you discover movies you might love based on your taste in previously watched films.  Powered by the intelligent DeepSeek API for recommendations and enhanced with movie details from TMDB API, Chitra provides a ranked list of movies with posters, release years, descriptions, and reasons why you might enjoy them.
+
+Overview
+Chitra is a Streamlit web application that helps you discover movies you might love based on your taste in previously watched films. Powered by the intelligent DeepSeek API for recommendations and enhanced with movie details from TMDB API, Chitra provides a ranked list of movies with posters, release years, descriptions, and reasons why you might enjoy them.
 
 How it Works:
 
@@ -21,7 +20,7 @@ Reasoning Provided: Clear explanations for each recommendation, connecting it ba
 User-Friendly Interface: Simple and intuitive Streamlit web application, easy to use for anyone looking for movie inspiration.
 Error Handling: Graceful handling of API errors and missing movie data, ensuring a smooth user experience.
 Try it out!
-[Link to Deployed Streamlit App Here]  Click the link above to access the live Chitra Movie Recommender app (once you have deployed it to Streamlit Cloud).
+[Live Demo of Chitra Movie Recommender]  (Click the link above to access the live Chitra Movie Recommender app - replace with your actual Streamlit Cloud app URL after deployment).
 
 How to Use the App
 Using Chitra is easy! Just follow these steps:
@@ -49,7 +48,7 @@ Clone the Repository:
 
 Bash
 
-git clone [repository-url]  # Replace with your GitHub repository URL
+git clone <your-repository-url>  # Replace with your GitHub repository URL
 cd streamlit-movie-recommender # Or your repository folder name
 Set up Environment Variables:
 
@@ -82,13 +81,16 @@ Connect to Repository:
 Select your GitHub repository, branch (main or master), and specify streamlit_app.py as the main file path.
 Set Up Secrets: Crucially, do not hardcode API keys in your code. Instead, configure secrets in Streamlit Cloud:
 Go to your app's settings in Streamlit Cloud ("..." menu -> "Edit Secrets").
+
 Add the following secrets in TOML format:
+
 Ini, TOML
 
 DEEPSEEK_API_KEY = "YOUR_DEEPSEEK_API_KEY_HERE"
 TMDB_API_KEY = "YOUR_TMDB_API_KEY_HERE"
 Replace "YOUR_DEEPSEEK_API_KEY_HERE" and "YOUR_TMDB_API_KEY_HERE" with your actual API keys. Remember to enclose the API key values in double quotes.
 Click "Save".
+
 Deploy!: Click the "Deploy!" button in Streamlit Cloud.
 Access Live App: Once deployed, Streamlit Cloud will provide you with a public URL to access your live Movie Recommender app.
 Built With
@@ -101,12 +103,3 @@ Credits
 Built with ❤️ by Tushar Nain - Mesa School of Business
 
 Enjoy discovering new movies with Chitra!
-
-
-**Remember to:**
-
-*   **Replace `[repository-url]`** with the actual URL of your GitHub repository in the "Local Development Setup" section.
-*   **Replace `[Link to Deployed Streamlit App Here]` and `https://your-streamlit-cloud-app-url`** with the actual URL of your deployed Streamlit Cloud app in both the "Try it out!" and "How to Use the App" sections once you deploy your app.
-*   **Remove the placeholder text**  `YOUR_DEEPSEEK_API_KEY_HERE` and `YOUR_TMDB_API_KEY_HERE` in the instructions and remind users to get their own API keys and set them up securely.
-
-This README provides a good overview of your application, instructions for users and developers, and the necessary setup information. You can save this content as `README.md` in your GitHub repository.
