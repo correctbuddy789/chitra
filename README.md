@@ -3,7 +3,7 @@
 ### Build 1.0 | Mesa School of Business | Tushar Nain
 
 ## Overview
-Chitra is a Streamlit web application that helps you discover movies you might love based on your taste in previously watched films. Powered by the intelligent **DeepSeek API** for recommendations and enriched with movie details from **TMDB API**, Chitra provides a ranked list of movies with posters, release years, descriptions, and reasons why you might enjoy them.
+Chitra is web application that helps you discover movies you might love based on your taste in previously watched films. Powered by the intelligent **Chain of Thought Model (R1)** for recommendations and  **TMDB API**, Chitra provides a ranked list of movies with posters, release years, descriptions, and reasons why you might enjoy them.
 
 ## How It Works
 
@@ -21,11 +21,6 @@ Chitra is a Streamlit web application that helps you discover movies you might l
 ✅ **User-Friendly Interface:** Simple and intuitive Streamlit web application.  
 ✅ **Error Handling:** Ensures smooth user experience even with missing data or API errors.  
 
-## Try It Out!
-🚀 **[Live Demo of Chitra Movie Recommender](#)**  
-_(Replace with your actual Streamlit Cloud app URL after deployment.)_
-
----
 
 ## How to Use the App
 
