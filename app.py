@@ -160,7 +160,7 @@ st.title("🎬🌟 Chitra the Movie Recommender")
 
 with st.form("movie_form"):
     liked_movie = st.text_input("Enter a movie you liked:")
-    liked_aspect = st.text_input("What did you like about it?")
+    liked_aspect = st.text_input("What did you like about it? The more detailed the better recommendation I can give (Role Play, Actors, Visuals etc)")
     num_recommendations = st.number_input("Number of recommendations:", min_value=1, max_value=5, value=3)
     submit_button = st.form_submit_button("Get Recommendations")
 
