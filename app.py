@@ -105,6 +105,12 @@ def get_movie_recommendations(liked_movie, liked_aspect, num_recommendations):
         response.raise_for_status()
         json_response = response.json()
 
+        # --- Debugging API Response ---
+        st.write("Raw API Response (for debugging):")
+        st.json(json_response)
+        # --- End Debugging ---
+
+
         if 'choices' in json_response and json_response['choices']:
             api_content = json_response['choices'][0]['message']['content']
             api_content = api_content.replace("`json", "").replace("`", "").strip()
@@ -148,10 +154,10 @@ def get_movie_recommendations(liked_movie, liked_aspect, num_recommendations):
 
 
 
-st.title("🎬🌟 Chitra Your Streaming Sidekick")
+st.title("🎬🌟 Chitra the Movie Recommender")
 
-liked_movie = st.text_input("Enter a movie/TV Series you liked:")
-liked_aspect = st.text_input("What did you like about this movie, the more details you can provide the better (e.g., 'the actors', 'suspense', 'visuals')?:")
+liked_movie = st.text_input("Enter a movie you liked:")
+liked_aspect = st.text_input("What did you like about this movie (e.g., 'the actors', 'suspense', 'visuals')?:")
 num_recommendations = st.number_input("How many movie recommendations do you want?", min_value=1, max_value=5, value=3)
 
 if st.button("Get Recommendations"):
@@ -162,7 +168,7 @@ if st.button("Get Recommendations"):
         recommendations = get_movie_recommendations(liked_movie, liked_aspect, num_recommendations)
 
         if recommendations:
-            st.success("Tada, Here we go! 🎉")
+            st.success("Movie Recommendations (Ranked):")
             for index, recommendation in enumerate(recommendations):
                 rank = index + 1
                 tmdb_details = recommendation.get('tmdb_details', {}) # Safely get TMDB details
@@ -188,6 +194,6 @@ if st.button("Get Recommendations"):
 
                 st.markdown("---")
         else:
-            st.error("Failed to get movie recommendations. Please check the error messages above and double check if the movie name is correct.")
+            st.error("Failed to get movie recommendations. Please check the error messages above.")
 
-st.markdown("Built with ❤️ by [Tushar](https://www.linkedin.com/in/tusharnain/) @ Mesa School of Business")
+st.markdown("Built with ❤️ by [Tushar](https://www.linkedin.com/in/tusharnain/) - Mesa School of Business")
