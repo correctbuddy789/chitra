@@ -151,7 +151,7 @@ def get_movie_recommendations(liked_movie, liked_aspect, num_recommendations):
 st.title("🎬🌟 Chitra the Movie Recommender")
 
 liked_movie = st.text_input("Enter a movie/TV Series you liked:")
-liked_aspect = st.text_input("What did you like about this movie (e.g., 'the actors', 'suspense', 'visuals')?:")
+liked_aspect = st.text_input("What did you like about this movie, the more details you can provide the better (e.g., 'the actors', 'suspense', 'visuals')?:")
 num_recommendations = st.number_input("How many movie recommendations do you want?", min_value=1, max_value=5, value=3)
 
 if st.button("Get Recommendations"):
