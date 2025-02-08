@@ -9,7 +9,8 @@ load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")  # Changed to GEMINI_API_KEY
 TMDB_API_KEY = os.getenv("TMDB_API_KEY") # Load TMDB API Key
 
-GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2-flash:generateContent" # Gemini Flash 2.0 Model
+# **MODIFIED GEMINI API URL - Replace YOUR_PROJECT_ID with your actual Project ID**
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/projects/YOUR_PROJECT_ID/locations/us-central1/models/gemini-2-flash:generateContent"
 TMDB_API_BASE_URL = "https://api.themoviedb.org/3"
 TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500"
 PLACEHOLDER_IMAGE_URL = "https://via.placeholder.com/500x750?text=Poster+Not+Available"
@@ -54,8 +55,9 @@ def get_movie_recommendations_gemini(liked_movie, liked_aspect, num_recommendati
         st.error("Gemini API key not found. Please check your Streamlit Secrets.")
         return None
 
-    params = {"key": GEMINI_API_KEY}  # API key in query parameters for Gemini
-    headers = {"Content-Type": "application/json"}  # Correct Content-Type for Gemini
+    # API key in query parameters for Gemini
+    params = {"key": GEMINI_API_KEY}
+    headers = {"Content-Type": "application/json"}
 
     prompt_content = f"""
     Based on the movie '{liked_movie}' that the user liked because '{liked_aspect}',
