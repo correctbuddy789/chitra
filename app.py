@@ -64,24 +64,24 @@ def fetch_tmdb_data(movie_title: str) -> Optional[Dict]:
         return None
 
 def generate_recommendations(liked_movie: str, liked_aspect: str, num_recommendations: int) -> Optional[List[Dict]]:
-    """Generates movie recommendations using the Gemini API free tier with an improved prompt."""
+    """Generates movie recommendations using the Gemini API free tier with a personalized prompt."""
     if not GEMINI_API_KEY:
         st.error("Gemini API key not found. Please check your .env file.")
         return None
 
-    # Revised prompt: explicitly require that each recommendation's reasoning mention the user's liked aspect.
+    # Revised prompt: personalized language directly addressing "you".
     prompt = (
-        f"You are a movie recommendation expert. The user enjoyed the movie '{liked_movie}' because they appreciated '{liked_aspect}'. "
-        f"Please recommend {num_recommendations} movies that share similar qualities and are likely to appeal to someone who values '{liked_aspect}'. "
-        "For each movie, provide a title, a brief 2-3 sentence description, and in the 'reasoning' field, explicitly mention how "
-        f"'{liked_aspect}' plays a role in making this movie a good match. "
+        f"You are a movie recommendation expert. You know that you enjoyed '{liked_movie}' because you loved '{liked_aspect}'. "
+        f"Please recommend {num_recommendations} movies that share similar qualities and would resonate with you. "
+        "For each movie, provide a title, a brief 2-3 sentence description, and in the 'reasoning' field, include a personalized explanation that speaks directly to your taste. "
+        "Make sure to explicitly reference your love for the aspect you mentioned. "
         "Return your answer strictly as valid JSON in the following format without any additional commentary:\n\n"
         '{\n'
         '  "recommendations": [\n'
         '    {\n'
         '      "title": "Movie Title",\n'
         '      "description": "2-3 sentence description",\n'
-        '      "reasoning": "Explain why this movie is a good match, explicitly referencing \'{liked_aspect}\'"\n'
+        '      "reasoning": "Explain why this movie is a great match for you, referencing your love for \'{liked_aspect}\'"\n'
         '    }\n'
         '  ]\n'
         '}\n'
@@ -110,7 +110,6 @@ def generate_recommendations(liked_movie: str, liked_aspect: str, num_recommenda
                     st.error("No candidates found in Gemini API response.")
                     return None
 
-                # Adjust for possible nesting in the response.
                 candidate = candidates[0]
                 generated_text = ""
                 if "content" in candidate and "parts" in candidate["content"]:
@@ -125,7 +124,6 @@ def generate_recommendations(liked_movie: str, liked_aspect: str, num_recommenda
                     st.error("Empty text received from Gemini API.")
                     return None
 
-                # Remove markdown code fences if present (e.g., ```json ... ```)
                 if generated_text.startswith("```"):
                     lines = generated_text.splitlines()
                     cleaned_lines = [line for line in lines if not line.strip().startswith("```")]
@@ -155,7 +153,6 @@ def generate_recommendations(liked_movie: str, liked_aspect: str, num_recommenda
 
 # --- Streamlit App Layout ---
 
-# Introduction and usage instructions
 st.title("🎬 Chitra | Your Streaming Sidekick")
 st.markdown(
     """
@@ -185,7 +182,6 @@ if submit_button:
                 with st.container():
                     col1, col2 = st.columns([1, 3])
                     with col1:
-                        # If a poster is available, show it; otherwise, display a styled placeholder.
                         if tmdb_data and tmdb_data.get("poster_url"):
                             st.image(tmdb_data["poster_url"], width=150)
                         else:
