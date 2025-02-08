@@ -99,7 +99,7 @@ def generate_recommendations(liked_movie: str, liked_aspect: str, num_recommenda
     
     for attempt in range(MAX_RETRIES):
         try:
-            with st.spinner(f"Attempt {attempt + 1}/{MAX_RETRIES}: Doing the Data Dance,Fetching recommendations..."):
+            with st.spinner(f"Attempt {attempt + 1}/{MAX_RETRIES}: Doing the Data Dance, Fetching recommendations..."):
                 response = requests.post(GEMINI_API_URL, params=params, json=payload, timeout=20)
                 response.raise_for_status()
                 resp_json = response.json()
