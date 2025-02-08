@@ -14,7 +14,7 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 TMDB_API_KEY = os.getenv("TMDB_API_KEY")
 
 # --- API Configuration ---
-# Using the Gemini 2.0 Flash model endpoint for improved performance
+# Using the Gemini 2.0 Flash model endpoint for improved performance.
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent"
 
 TMDB_API_BASE_URL = "https://api.themoviedb.org/3"
@@ -64,24 +64,24 @@ def fetch_tmdb_data(movie_title: str) -> Optional[Dict]:
         return None
 
 def generate_recommendations(liked_movie: str, liked_aspect: str, num_recommendations: int) -> Optional[List[Dict]]:
-    """Generates movie recommendations using the Gemini API free tier."""
+    """Generates movie recommendations using the Gemini API free tier with an improved prompt."""
     if not GEMINI_API_KEY:
         st.error("Gemini API key not found. Please check your .env file.")
         return None
 
-    # Revised prompt for better, more detailed recommendations.
+    # Revised prompt: explicitly require that each recommendation's reasoning mention the user's liked aspect.
     prompt = (
-        f"You are a movie recommendation expert. "
-        f"Based on the movie '{liked_movie}', which the user enjoyed because '{liked_aspect}', "
-        f"please recommend {num_recommendations} movies. Your recommendations should be solid and detailed, "
-        "taking into account cinematic quality, thematic relevance, and diversity. "
+        f"You are a movie recommendation expert. The user enjoyed the movie '{liked_movie}' because they appreciated '{liked_aspect}'. "
+        f"Please recommend {num_recommendations} movies that share similar qualities and are likely to appeal to someone who values '{liked_aspect}'. "
+        "For each movie, provide a title, a brief 2-3 sentence description, and in the 'reasoning' field, explicitly mention how "
+        f"'{liked_aspect}' plays a role in making this movie a good match. "
         "Return your answer strictly as valid JSON in the following format without any additional commentary:\n\n"
         '{\n'
         '  "recommendations": [\n'
         '    {\n'
         '      "title": "Movie Title",\n'
         '      "description": "2-3 sentence description",\n'
-        '      "reasoning": "Explain why this movie fits based on the user\'s preference"\n'
+        '      "reasoning": "Explain why this movie is a good match, explicitly referencing \'{liked_aspect}\'"\n'
         '    }\n'
         '  ]\n'
         '}\n'
@@ -99,7 +99,7 @@ def generate_recommendations(liked_movie: str, liked_aspect: str, num_recommenda
     
     for attempt in range(MAX_RETRIES):
         try:
-            with st.spinner(f"Attempt {attempt + 1}/{MAX_RETRIES}: Doing my Data Dance and getting you some great watch"):
+            with st.spinner(f"Attempt {attempt + 1}/{MAX_RETRIES}: Doing my Data Dance and fetching recommendations..."):
                 response = requests.post(GEMINI_API_URL, params=params, json=payload, timeout=20)
                 response.raise_for_status()
                 resp_json = response.json()
@@ -125,7 +125,7 @@ def generate_recommendations(liked_movie: str, liked_aspect: str, num_recommenda
                     st.error("Empty text received from Gemini API.")
                     return None
 
-                # Strip markdown code fences if present (e.g., ```json ... ```)
+                # Remove markdown code fences if present (e.g., ```json ... ```)
                 if generated_text.startswith("```"):
                     lines = generated_text.splitlines()
                     cleaned_lines = [line for line in lines if not line.strip().startswith("```")]
@@ -160,9 +160,10 @@ st.title("🎬 Chitra | Your Streaming Sidekick")
 st.markdown(
     """
     Welcome to Chitra – your natural language movie recommender!  
-    Simply enter a movie you enjoyed and share what you liked about it, in your own words and find your next great watch!
+    Simply enter a movie you enjoyed and share what you liked about it (for example, the acting, storyline, or cinematography), 
+    and we’ll suggest movies that match your tastes.
     
-    Feel free to be as descriptive as you like! It only Improve the results. 
+    The more details you provide, the better the recommendations will be. Feel free to describe what you loved about the movie!
     """
 )
 
