@@ -99,7 +99,7 @@ def generate_recommendations(liked_movie: str, liked_aspect: str, num_recommenda
     
     for attempt in range(MAX_RETRIES):
         try:
-            with st.spinner(f"Attempt {attempt + 1}/{MAX_RETRIES}: Getting recommendations from Gemini API..."):
+            with st.spinner(f"Attempt {attempt + 1}/{MAX_RETRIES}: Doing my Data Dance and getting you some great watch"):
                 response = requests.post(GEMINI_API_URL, params=params, json=payload, timeout=20)
                 response.raise_for_status()
                 resp_json = response.json()
@@ -160,17 +160,16 @@ st.title("🎬🌟 Chitra the Movie Recommender")
 st.markdown(
     """
     Welcome to Chitra – your natural language movie recommender!  
-    Simply enter a movie you enjoyed and share what you liked about it, in your own words.  
-    Our AI analyzes your input and suggests personalized, detailed movie recommendations based on cinematic quality, thematic relevance, and diversity.
+    Simply enter a movie you enjoyed and share what you liked about it, in your own words and find your next great watch!
     
-    Feel free to be as descriptive as you like!
+    Feel free to be as descriptive as you like! It only Improve the results. 
     """
 )
 
 with st.form("movie_form"):
     liked_movie = st.text_input("Enter a movie you liked:")
     liked_aspect = st.text_input("What did you like about it? (e.g., the acting, storyline, cinematography, etc.)")
-    num_recommendations = st.number_input("Number of recommendations:", min_value=1, max_value=5, value=3)
+    num_recommendations = st.number_input("Number of recommendations:", min_value=1, max_value=10, value=3)
     submit_button = st.form_submit_button("Get Recommendations")
 
 if submit_button:
