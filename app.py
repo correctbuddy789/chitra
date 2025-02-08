@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 import time
 from typing import Optional, List, Dict  # Import typing hints
+import json  # Corrected: json import moved back here
 
 # TMDB API handling (remains mostly the same)
 import requests
