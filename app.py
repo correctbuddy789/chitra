@@ -188,6 +188,6 @@ if st.button("Get Recommendations"):
 
                 st.markdown("---")
         else:
-            st.error("Failed to get movie recommendations. Please check the error messages above.")
+            st.error("Failed to get movie recommendations. Please check the error messages above and double check if the movie name is correct.")
 
 st.markdown("Built with ❤️ by [Tushar](https://www.linkedin.com/in/tusharnain/) @ Mesa School of Business")
