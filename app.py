@@ -99,7 +99,7 @@ def generate_recommendations(liked_movie: str, liked_aspect: str, num_recommenda
     
     for attempt in range(MAX_RETRIES):
         try:
-            with st.spinner(f"Attempt {attempt + 1}/{MAX_RETRIES}: Getting recommendations from Gemini API..."):
+            with st.spinner(f"Attempt {attempt + 1}/{MAX_RETRIES}: Good things take time... Doing my Data Dance"):
                 response = requests.post(GEMINI_API_URL, params=params, json=payload, timeout=20)
                 response.raise_for_status()
                 resp_json = response.json()
@@ -156,7 +156,7 @@ def generate_recommendations(liked_movie: str, liked_aspect: str, num_recommenda
 
 # --- Streamlit App Layout ---
 
-st.title("🎬🌟 Chitra the Movie Recommender (Gemini API Edition)")
+st.title("🎬🌟 Chitra the Movie Recommender")
 
 with st.form("movie_form"):
     liked_movie = st.text_input("Enter a movie you liked:")
@@ -170,7 +170,7 @@ if submit_button:
     else:
         recommendations = generate_recommendations(liked_movie, liked_aspect, num_recommendations)
         if recommendations:
-            st.success("Here are your personalized movie recommendations:")
+            st.success("Tada, Here are your personalized movie recommendations:")
             for idx, rec in enumerate(recommendations):
                 tmdb_data = fetch_tmdb_data(rec.get("title", ""))
                 with st.container():
