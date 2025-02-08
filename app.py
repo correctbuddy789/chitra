@@ -157,10 +157,10 @@ def generate_recommendations(liked_movie: str, liked_aspect: str, num_recommenda
 st.title("🎬 Chitra | Your Streaming Sidekick")
 st.markdown(
     """
-    Welcome to Chitra – your natural language movie recommender!  
-    Enter a movie you enjoyed and share what you liked about it (for example, the acting, storyline, or cinematography), 
-    and we'll suggest movies that might suit your taste.  
-    The more details you provide, the more tailored and useful the recommendations will be.
+    Welcome to Chitra your NLP based Streaming Sidekick! Enter a movie you enjoyed and share what you liked about it (for example, the acting, storyline, or cinematography), 
+    and we'll suggest movies that might suit your taste.
+   
+   💡 The more details you provide, the more tailored and useful the recommendations will be. 
     """
 )
 
