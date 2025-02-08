@@ -1,4 +1,4 @@
-# 🎬 Chitra - The Movie Recommender
+# 🎬 Chitra - Your Streaming Sidekick
 
 ### Build 1.0 | Mesa School of Business | Tushar Nain
 
