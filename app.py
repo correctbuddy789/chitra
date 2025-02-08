@@ -14,8 +14,8 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 TMDB_API_KEY = os.getenv("TMDB_API_KEY")
 
 # --- API Configuration ---
-# Gemini API endpoint for the free tier using the gemini-1.5-flash model.
-GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent"
+# Using the Gemini 2.0 Flash model endpoint for improved performance
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent"
 
 TMDB_API_BASE_URL = "https://api.themoviedb.org/3"
 TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500"
@@ -55,7 +55,7 @@ def fetch_tmdb_data(movie_title: str) -> Optional[Dict]:
             poster_path = movie.get("poster_path")
             year = movie.get("release_date", "").split("-")[0]
             return {
-                "poster_url": f"{TMDB_IMAGE_BASE_URL}{poster_path}" if poster_path else PLACEHOLDER_IMAGE_URL,
+                "poster_url": f"{TMDB_IMAGE_BASE_URL}{poster_path}" if poster_path else None,
                 "year": year if year else "N/A",
             }
         return None
@@ -69,21 +69,22 @@ def generate_recommendations(liked_movie: str, liked_aspect: str, num_recommenda
         st.error("Gemini API key not found. Please check your .env file.")
         return None
 
-    # Construct the prompt instructing Gemini to return strictly formatted JSON.
+    # Revised prompt for better, more detailed recommendations.
     prompt = (
-        f"Based on the movie '{liked_movie}' that the user liked because '{liked_aspect}', "
-        f"recommend {num_recommendations} movies, ranked by relevance. "
-        "Return the answer strictly as JSON following this format:\n\n"
+        f"You are a movie recommendation expert. "
+        f"Based on the movie '{liked_movie}', which the user enjoyed because '{liked_aspect}', "
+        f"please recommend {num_recommendations} movies. Your recommendations should be solid and detailed, "
+        "taking into account cinematic quality, thematic relevance, and diversity. "
+        "Return your answer strictly as valid JSON in the following format without any additional commentary:\n\n"
         '{\n'
         '  "recommendations": [\n'
         '    {\n'
         '      "title": "Movie Title",\n'
         '      "description": "2-3 sentence description",\n'
-        '      "reasoning": "Why you would like it based on the liked aspect"\n'
+        '      "reasoning": "Explain why this movie fits based on the user\'s preference"\n'
         '    }\n'
         '  ]\n'
         '}\n'
-        "Do not include any additional commentary or text."
     )
 
     payload = {
@@ -94,23 +95,22 @@ def generate_recommendations(liked_movie: str, liked_aspect: str, num_recommenda
             }
         ]
     }
-
     params = {"key": GEMINI_API_KEY}
     
     for attempt in range(MAX_RETRIES):
         try:
-            with st.spinner(f"Attempt {attempt + 1}/{MAX_RETRIES}: Good things take time... Doing my Data Dance"):
+            with st.spinner(f"Attempt {attempt + 1}/{MAX_RETRIES}: Getting recommendations from Gemini API..."):
                 response = requests.post(GEMINI_API_URL, params=params, json=payload, timeout=20)
                 response.raise_for_status()
                 resp_json = response.json()
-                # Raw Gemini response hidden from user.
-                
+                # The raw Gemini response is hidden from the user.
+
                 candidates = resp_json.get("candidates")
                 if not candidates or not isinstance(candidates, list):
                     st.error("No candidates found in Gemini API response.")
                     return None
 
-                # Depending on the API version, the generated text might be nested differently.
+                # Adjust for possible nesting in the response.
                 candidate = candidates[0]
                 generated_text = ""
                 if "content" in candidate and "parts" in candidate["content"]:
@@ -125,10 +125,9 @@ def generate_recommendations(liked_movie: str, liked_aspect: str, num_recommenda
                     st.error("Empty text received from Gemini API.")
                     return None
 
-                # Remove markdown code fences if present (e.g., ```json ... ```)
+                # Strip markdown code fences if present (e.g., ```json ... ```)
                 if generated_text.startswith("```"):
                     lines = generated_text.splitlines()
-                    # Remove lines that are only code fences.
                     cleaned_lines = [line for line in lines if not line.strip().startswith("```")]
                     generated_text = "\n".join(cleaned_lines).strip()
 
@@ -156,28 +155,48 @@ def generate_recommendations(liked_movie: str, liked_aspect: str, num_recommenda
 
 # --- Streamlit App Layout ---
 
+# Introduction and usage instructions
 st.title("🎬🌟 Chitra the Movie Recommender")
+st.markdown(
+    """
+    Welcome to Chitra – your natural language movie recommender!  
+    Simply enter a movie you enjoyed and share what you liked about it, in your own words.  
+    Our AI analyzes your input and suggests personalized, detailed movie recommendations based on cinematic quality, thematic relevance, and diversity.
+    
+    Feel free to be as descriptive as you like!
+    """
+)
 
 with st.form("movie_form"):
     liked_movie = st.text_input("Enter a movie you liked:")
-    liked_aspect = st.text_input("What did you like about it? The more detailed the better recommendation I can give (Role Play, Actors, Visuals etc)")
+    liked_aspect = st.text_input("What did you like about it? (e.g., the acting, storyline, cinematography, etc.)")
     num_recommendations = st.number_input("Number of recommendations:", min_value=1, max_value=5, value=3)
     submit_button = st.form_submit_button("Get Recommendations")
 
 if submit_button:
     if not liked_movie or not liked_aspect:
-        st.warning("Please enter both a movie title and what you liked about it.")
+        st.warning("Please enter both a movie title and details about what you liked.")
     else:
         recommendations = generate_recommendations(liked_movie, liked_aspect, num_recommendations)
         if recommendations:
-            st.success("Tada, Here are your personalized movie recommendations:")
+            st.success("Here are your personalized movie recommendations:")
             for idx, rec in enumerate(recommendations):
                 tmdb_data = fetch_tmdb_data(rec.get("title", ""))
                 with st.container():
                     col1, col2 = st.columns([1, 3])
                     with col1:
-                        image_url = tmdb_data.get("poster_url") if tmdb_data else PLACEHOLDER_IMAGE_URL
-                        st.image(image_url, width=150)
+                        # If a poster is available, show it; otherwise, display a styled placeholder.
+                        if tmdb_data and tmdb_data.get("poster_url"):
+                            st.image(tmdb_data["poster_url"], width=150)
+                        else:
+                            st.markdown(
+                                """
+                                <div style="width:150px;height:225px;background-color:#ddd;
+                                display:flex;align-items:center;justify-content:center;border-radius:8px;">
+                                    <span style="color:#555;font-weight:bold;">No Image</span>
+                                </div>
+                                """, unsafe_allow_html=True
+                            )
                     with col2:
                         title_str = f"{idx + 1}. {rec.get('title', 'No Title')}"
                         year_str = f" ({tmdb_data.get('year')})" if tmdb_data and tmdb_data.get("year") else ""
