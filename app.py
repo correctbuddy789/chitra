@@ -176,7 +176,7 @@ if submit_button:
     else:
         recommendations = generate_recommendations(liked_movie, liked_aspect, num_recommendations)
         if recommendations:
-            st.success("Here are your personalized movie recommendations:")
+            st.success("Tada 👌👌, Here are your personalized movie recommendations:")
             for idx, rec in enumerate(recommendations):
                 tmdb_data = fetch_tmdb_data(rec.get("title", ""))
                 with st.container():
