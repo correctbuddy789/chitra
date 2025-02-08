@@ -148,7 +148,7 @@ def get_movie_recommendations(liked_movie, liked_aspect, num_recommendations):
 
 
 
-st.title("🎬🌟 Chitra the Movie Recommender")
+st.title("🎬🌟 Chitra Your Streaming Sidekick")
 
 liked_movie = st.text_input("Enter a movie/TV Series you liked:")
 liked_aspect = st.text_input("What did you like about this movie, the more details you can provide the better (e.g., 'the actors', 'suspense', 'visuals')?:")
