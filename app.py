@@ -106,9 +106,10 @@ def get_movie_recommendations(liked_movie, liked_aspect, num_recommendations):
     max_retries = 1 # Let's try one retry
 
     while retry_count <= max_retries: # Retry loop for robustness
+        response = None  # **Initialize response to None here**
 
         try: # --- Outer try block for the *entire* API request process ---
-            response = requests.post(DEEPSEEK_API_URL, headers=headers, data=json.dumps(data), timeout=15) # Timeout to prevent indefinite hanging
+            response = requests.post(DEEPSEEK_API_URL, headers=headers, data=json.dumps(data), timeout=30) # **Increased timeout to 30 seconds**
             response.raise_for_status() # Raise HTTPError for bad responses (4xx or 5xx)
 
             api_content = response.text # Get raw text content - BEFORE JSON parsing
@@ -180,8 +181,11 @@ def get_movie_recommendations(liked_movie, liked_aspect, num_recommendations):
 
         except requests.exceptions.RequestException as e_request: # Handle network request errors (connection, timeout, HTTP errors)
             st.error(f"CRITICAL ERROR: DeepSeek API request COMPLETELY FAILED! - Retry {retry_count}.")
-            st.error(f"The app could not complete the HTTP request to the DeepSeek API endpoint. Check network, endpoint URL, and API status.")
-            st.error(f"Request exception details: {e_request}")
+            if isinstance(e_request, requests.exceptions.Timeout): # **More specific timeout error message**
+                st.error(f"Request timed out after 30 seconds. The DeepSeek API might be slow or unavailable. You can try increasing the timeout or retrying later.")
+            else:
+                st.error(f"The app could not complete the HTTP request to the DeepSeek API endpoint. Check network, endpoint URL, and API status.")
+                st.error(f"Request exception details: {e_request}")
             if response is not None: # Log HTTP status and headers if response object is available
                 st.error(f"HTTP Status Code: {response.status_code}")
                 st.error(f"Response Headers: {response.headers}")
@@ -191,7 +195,7 @@ def get_movie_recommendations(liked_movie, liked_aspect, num_recommendations):
             st.info(f"Retrying DeepSeek API request (Attempt {retry_count}/{max_retries})...")
             time.sleep(2) # Wait before retrying
 
-    return None # Return None if all retries failed or any error occurred
+    return None # Return None if all retries failed or any other error occurred
 
 
 st.title("🎬🌟 Chitra the Movie Recommender")
