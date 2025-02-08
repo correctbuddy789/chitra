@@ -106,8 +106,8 @@ def get_movie_recommendations(liked_movie, liked_aspect, num_recommendations):
         json_response = response.json()
 
         # --- Debugging API Response ---
-        st.write("Raw API Response (for debugging):")
-        st.json(json_response)
+        # st.write("Raw API Response (for debugging):") # Commented out
+        # st.json(json_response) # Commented out
         # --- End Debugging ---
 
 
