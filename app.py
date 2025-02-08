@@ -7,28 +7,31 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from typing import Optional, List, Dict
-from openai import OpenAI
 
 # --- Load Environment Variables ---
 load_dotenv()
-DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 TMDB_API_KEY = os.getenv("TMDB_API_KEY")
 
 # --- API Configuration ---
+# Gemini API endpoint for the free tier (using gemini-1.5-flash model)
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent"
+
 TMDB_API_BASE_URL = "https://api.themoviedb.org/3"
 TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500"
 PLACEHOLDER_IMAGE_URL = "https://via.placeholder.com/500x750?text=Poster+Not+Available"
+
 MAX_RETRIES = 3
 RETRY_DELAY = 2  # seconds
 
 # --- Helper Functions ---
 
 def create_requests_session() -> requests.Session:
-    """Create a requests session with retry logic for TMDB API calls."""
+    """Creates a requests session with retry logic for TMDB API calls."""
     session = requests.Session()
     retries = Retry(
-        total=MAX_RETRIES, 
-        backoff_factor=1, 
+        total=MAX_RETRIES,
+        backoff_factor=1,
         status_forcelist=[429, 500, 502, 503, 504]
     )
     session.mount("http://", HTTPAdapter(max_retries=retries))
@@ -36,7 +39,7 @@ def create_requests_session() -> requests.Session:
     return session
 
 def fetch_tmdb_data(movie_title: str) -> Optional[Dict]:
-    """Fetch movie poster URL and release year from TMDB for the given movie title."""
+    """Fetches movie poster URL and release year from TMDB for a given movie title."""
     if not TMDB_API_KEY:
         st.error("TMDB API key not configured.")
         return None
@@ -61,66 +64,73 @@ def fetch_tmdb_data(movie_title: str) -> Optional[Dict]:
         return None
 
 def generate_recommendations(liked_movie: str, liked_aspect: str, num_recommendations: int) -> Optional[List[Dict]]:
-    """Generate movie recommendations using the DeepSeek API."""
-    if not DEEPSEEK_API_KEY:
-        st.error("DeepSeek API key not found. Please check your .env file.")
+    """Generates movie recommendations using the Gemini API free tier."""
+    if not GEMINI_API_KEY:
+        st.error("Gemini API key not found. Please check your .env file.")
         return None
 
-    # Initialize DeepSeek client with the correct base_url
-    client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com")
+    # Construct the prompt instructing Gemini to output JSON only.
+    prompt = (
+        f"Based on the movie '{liked_movie}' that the user liked because '{liked_aspect}', "
+        f"recommend {num_recommendations} movies, ranked by relevance. "
+        "Return the answer strictly as JSON following this format:\n\n"
+        '{\n'
+        '  "recommendations": [\n'
+        '    {\n'
+        '      "title": "Movie Title",\n'
+        '      "description": "2-3 sentence description",\n'
+        '      "reasoning": "Why you would like it based on the liked aspect"\n'
+        '    }\n'
+        '  ]\n'
+        '}\n'
+        "Do not include any additional commentary or text."
+    )
 
-    # Build the message payload to instruct the assistant to output JSON only.
-    messages = [
-        {
-            "role": "system", 
-            "content": "You are a movie recommendation expert. Provide recommendations in valid JSON format."
-        },
-        {
-            "role": "user",
-            "content": (
-                f"Based on the movie '{liked_movie}' that the user liked because '{liked_aspect}', "
-                f"recommend {num_recommendations} movies, ranked by relevance. "
-                "Return the output as JSON strictly following this format:\n\n"
-                '{\n'
-                '    "recommendations": [\n'
-                '        {\n'
-                '            "title": "Movie Title",\n'
-                '            "description": "2-3 sentence description",\n'
-                '            "reasoning": "Why you would like it based on the liked aspect"\n'
-                '        }\n'
-                '    ]\n'
-                '}'
-            )
-        }
-    ]
+    payload = {
+        "contents": [
+            {
+                "role": "user",
+                "parts": [{"text": prompt}]
+            }
+        ]
+    }
 
-    # Attempt to get a response with retries
+    params = {"key": GEMINI_API_KEY}
+    
     for attempt in range(MAX_RETRIES):
         try:
-            with st.spinner(f"Attempt {attempt + 1}/{MAX_RETRIES}: Getting recommendations..."):
-                response = client.chat.completions.create(
-                    model="deepseek-chat",
-                    messages=messages,
-                    stream=False,
-                    max_tokens=1000,
-                    temperature=0.7
-                )
-                # Extract the message content from the response
-                content = response.choices[0].message.content
-                st.write("Raw API response:", content)  # Debug output
-
-                if not content.strip():
-                    st.error("Empty response received from DeepSeek API.")
+            with st.spinner(f"Attempt {attempt + 1}/{MAX_RETRIES}: Getting recommendations from Gemini API..."):
+                response = requests.post(GEMINI_API_URL, params=params, json=payload, timeout=20)
+                response.raise_for_status()
+                resp_json = response.json()
+                # Debug output: show the raw response from Gemini
+                st.write("Raw Gemini API response:", resp_json)
+                
+                # Expecting a structure like: { "candidates": [ { "output": { "text": "..." } } ] }
+                candidates = resp_json.get("candidates")
+                if not candidates or not isinstance(candidates, list):
+                    st.error("No candidates found in Gemini API response.")
                     return None
 
-                # Parse the JSON content
-                parsed = json.loads(content)
-                recommendations = parsed.get('recommendations')
-                if not recommendations:
-                    st.error("JSON response does not contain 'recommendations'.")
-                    st.code(content, language='json')
+                # Get the generated text from the first candidate.
+                generated_text = candidates[0].get("output", {}).get("text", "")
+                if not generated_text.strip():
+                    st.error("Empty text received from Gemini API.")
                     return None
-                return recommendations
+
+                # Parse the generated text as JSON.
+                try:
+                    recommendations_json = json.loads(generated_text)
+                    recommendations = recommendations_json.get("recommendations")
+                    if not recommendations:
+                        st.error("JSON response does not contain 'recommendations'.")
+                        st.code(generated_text, language='json')
+                        return None
+                    return recommendations
+                except json.JSONDecodeError as decode_error:
+                    st.error(f"Failed to decode JSON from Gemini API response: {decode_error}")
+                    st.code(generated_text, language='json')
+                    return None
 
         except Exception as e:
             if attempt < MAX_RETRIES - 1:
@@ -128,14 +138,12 @@ def generate_recommendations(liked_movie: str, liked_aspect: str, num_recommenda
                 time.sleep(RETRY_DELAY * (2 ** attempt))
             else:
                 st.error(f"Failed to get recommendations after multiple retries: {e}")
-                if 'response' in locals() and hasattr(response, 'text'):
-                    st.code(response.text, language='text')
                 return None
     return None
 
 # --- Streamlit App Layout ---
 
-st.title("🎬🌟 Chitra the Movie Recommender")
+st.title("🎬🌟 Chitra the Movie Recommender (Gemini API Edition)")
 
 with st.form("movie_form"):
     liked_movie = st.text_input("Enter a movie you liked:")
@@ -151,20 +159,19 @@ if submit_button:
         if recommendations:
             st.success("Here are your personalized movie recommendations:")
             for idx, rec in enumerate(recommendations):
-                tmdb_data = fetch_tmdb_data(rec.get('title', ''))
+                tmdb_data = fetch_tmdb_data(rec.get("title", ""))
                 with st.container():
                     col1, col2 = st.columns([1, 3])
                     with col1:
-                        # Display TMDB poster if available; otherwise use a placeholder
-                        image_url = tmdb_data.get('poster_url') if tmdb_data else PLACEHOLDER_IMAGE_URL
+                        image_url = tmdb_data.get("poster_url") if tmdb_data else PLACEHOLDER_IMAGE_URL
                         st.image(image_url, width=150)
                     with col2:
-                        title_str = f"{idx+1}. {rec.get('title', 'No Title')}"
-                        year_str = f" ({tmdb_data.get('year')})" if tmdb_data and tmdb_data.get('year') else ""
+                        title_str = f"{idx + 1}. {rec.get('title', 'No Title')}"
+                        year_str = f" ({tmdb_data.get('year')})" if tmdb_data and tmdb_data.get("year") else ""
                         st.markdown(f"### {title_str}{year_str}")
-                        st.write(rec.get('description', 'No description available.'))
+                        st.write(rec.get("description", "No description available."))
                         st.markdown("**Why you'll like it:**")
-                        st.write(rec.get('reasoning', 'No reasoning provided.'))
+                        st.write(rec.get("reasoning", "No reasoning provided."))
                 st.divider()
         else:
             st.error("Could not retrieve recommendations. Please try again later.")
