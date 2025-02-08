@@ -14,7 +14,7 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 TMDB_API_KEY = os.getenv("TMDB_API_KEY")
 
 # --- API Configuration ---
-# Gemini API endpoint for the free tier (using gemini-1.5-flash model)
+# Gemini API endpoint for the free tier using the gemini-1.5-flash model.
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent"
 
 TMDB_API_BASE_URL = "https://api.themoviedb.org/3"
@@ -27,7 +27,7 @@ RETRY_DELAY = 2  # seconds
 # --- Helper Functions ---
 
 def create_requests_session() -> requests.Session:
-    """Creates a requests session with retry logic for TMDB API calls."""
+    """Creates a requests session with retry logic."""
     session = requests.Session()
     retries = Retry(
         total=MAX_RETRIES,
@@ -50,10 +50,10 @@ def fetch_tmdb_data(movie_title: str) -> Optional[Dict]:
         response = session.get(url, timeout=10)
         response.raise_for_status()
         data = response.json()
-        if data.get('results'):
-            movie = data['results'][0]
-            poster_path = movie.get('poster_path')
-            year = movie.get('release_date', '').split('-')[0]
+        if data.get("results"):
+            movie = data["results"][0]
+            poster_path = movie.get("poster_path")
+            year = movie.get("release_date", "").split("-")[0]
             return {
                 "poster_url": f"{TMDB_IMAGE_BASE_URL}{poster_path}" if poster_path else PLACEHOLDER_IMAGE_URL,
                 "year": year if year else "N/A",
@@ -69,7 +69,7 @@ def generate_recommendations(liked_movie: str, liked_aspect: str, num_recommenda
         st.error("Gemini API key not found. Please check your .env file.")
         return None
 
-    # Construct the prompt instructing Gemini to output JSON only.
+    # Construct the prompt instructing Gemini to return strictly formatted JSON.
     prompt = (
         f"Based on the movie '{liked_movie}' that the user liked because '{liked_aspect}', "
         f"recommend {num_recommendations} movies, ranked by relevance. "
@@ -103,22 +103,36 @@ def generate_recommendations(liked_movie: str, liked_aspect: str, num_recommenda
                 response = requests.post(GEMINI_API_URL, params=params, json=payload, timeout=20)
                 response.raise_for_status()
                 resp_json = response.json()
-                # Debug output: show the raw response from Gemini
                 st.write("Raw Gemini API response:", resp_json)
                 
-                # Expecting a structure like: { "candidates": [ { "output": { "text": "..." } } ] }
                 candidates = resp_json.get("candidates")
                 if not candidates or not isinstance(candidates, list):
                     st.error("No candidates found in Gemini API response.")
                     return None
 
-                # Get the generated text from the first candidate.
-                generated_text = candidates[0].get("output", {}).get("text", "")
+                # Depending on the API version, the generated text might be nested under different keys.
+                # For this example, we expect the text under candidates[0]["content"]["parts"][0]["text"].
+                candidate = candidates[0]
+                generated_text = ""
+                if "content" in candidate and "parts" in candidate["content"]:
+                    generated_text = candidate["content"]["parts"][0].get("text", "")
+                elif "output" in candidate:
+                    generated_text = candidate["output"].get("text", "")
+                else:
+                    st.error("Unexpected Gemini API response structure.")
+                    return None
+
                 if not generated_text.strip():
                     st.error("Empty text received from Gemini API.")
                     return None
 
-                # Parse the generated text as JSON.
+                # Remove markdown code fences if present (e.g., ```json ... ```)
+                if generated_text.startswith("```"):
+                    lines = generated_text.splitlines()
+                    # Remove lines that are only code fences.
+                    cleaned_lines = [line for line in lines if not line.strip().startswith("```")]
+                    generated_text = "\n".join(cleaned_lines).strip()
+
                 try:
                     recommendations_json = json.loads(generated_text)
                     recommendations = recommendations_json.get("recommendations")
