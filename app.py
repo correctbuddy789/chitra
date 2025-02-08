@@ -103,72 +103,96 @@ def get_movie_recommendations(liked_movie, liked_aspect, num_recommendations):
         "stop": ["\nJSON"] # Assuming JSON format, adjust stop sequence if needed
     }
 
-    try: # ... (API Request and JSON Parsing - with even more robust error handling) ...
-        response = requests.post(DEEPSEEK_API_URL, headers=headers, data=json.dumps(data))
-        response.raise_for_status()
-        json_response = response.json()
+    json_response = None # Initialize json_response outside try block
 
-        # --- Debugging API Response - Keep for now ---
-        st.write("Raw API Response (for debugging - checking JSON validity):")
-        st.text(json_response) # Display as text first
-        # st.json(json_response) # Keep json display for valid JSON cases
+    try: # --- Outer try block for the *entire* API request process ---
+        response = requests.post(DEEPSEEK_API_URL, headers=headers, data=json.dumps(data))
+        response.raise_for_status() # Raise HTTPError for bad responses
+
+
+        api_content = response.text # Get raw text content - BEFORE trying to parse JSON
+
+        # --- Debugging: Show raw API text response ---
+        st.write("Raw API Text Response (for debugging - BEFORE JSON parsing):")
+        st.text(api_content)
         # --- End Debugging ---
 
 
-        if 'choices' in json_response and json_response['choices']:
-            api_content = json_response['choices'][0]['message']['content']
+        try: # --- Inner try block ONLY for JSON parsing ---
+            json_response = response.json() # Now try to parse JSON
 
-            if not api_content: # **NEW: Check for empty api_content**
-                st.error("DeepSeek API returned an empty content response.")
-                return None
+            # --- Debugging: Show parsed JSON (if parsing successful) ---
+            st.write("Parsed JSON Response (for debugging - if JSON parsing succeeded):")
+            st.json(json_response)
+            # --- End Debugging ---
 
-            api_content = api_content.replace("`json", "").replace("`", "").strip() # Clean up wrappers
 
-            try:
-                recommendation_data = json.loads(api_content) # Parse JSON
+            if 'choices' in json_response and json_response['choices']:
+                api_content = json_response['choices'][0]['message']['content']
 
-                if 'recommendations' in recommendation_data and isinstance(recommendation_data['recommendations'], list):
-                    ranked_recommendations = recommendation_data['recommendations'] # Get ranked recommendations list
-
-                    # --- Fetch TMDB details for each recommendation ---
-                    final_recommendations = []
-                    for recommendation in ranked_recommendations:
-                        movie_title = recommendation.get('title')
-                        tmdb_details = get_tmdb_movie_details(movie_title) # Fetch TMDB details
-
-                        # Merge DeepSeek recommendation with TMDB details
-                        final_recommendation = {
-                            **recommendation, # Keep DeepSeek recommendation data
-                            "tmdb_details": tmdb_details or {} # Add TMDB details (or empty dict if None)
-                        }
-                        final_recommendations.append(final_recommendation)
-
-                    return final_recommendations # Return list of recommendations with merged data
-                else:
-                    st.error("Unexpected API response format: 'recommendations' list not found in JSON.")
-                    st.code(api_content) # Show raw content for inspection
+                if not api_content: # **NEW: Check for empty api_content**
+                    st.error("DeepSeek API returned an empty content response within 'choices'.")
                     return None
 
-            except json.JSONDecodeError as e: # ... (JSON Error Handling - Even More Robust) ...
-                st.error(f"CRITICAL ERROR: DeepSeek API response is NOT VALID JSON - Parsing Failed!")
-                st.error(f"Likely cause: API returned plain text or HTML instead of JSON. Check API key, endpoint, and DeepSeek API status.")
-                st.error(f"JSONDecodeError details: {e}") # Show specific JSON decode error
-                st.code(api_content) # Display the raw content that FAILED to parse - essential for debugging!
+                api_content = api_content.replace("`json", "").replace("`", "").strip() # Clean up wrappers
+
+
+                try: # --- Innermost try block for JSON parsing of api_content ---
+                    recommendation_data = json.loads(api_content) # Parse JSON content
+
+                    if 'recommendations' in recommendation_data and isinstance(recommendation_data['recommendations'], list):
+                        ranked_recommendations = recommendation_data['recommendations'] # Get ranked recommendations list
+
+                        # --- Fetch TMDB details for each recommendation ---
+                        final_recommendations = []
+                        for recommendation in ranked_recommendations:
+                            movie_title = recommendation.get('title')
+                            tmdb_details = get_tmdb_movie_details(movie_title) # Fetch TMDB details
+
+                            # Merge DeepSeek recommendation with TMDB details
+                            final_recommendation = {
+                                **recommendation, # Keep DeepSeek recommendation data
+                                "tmdb_details": tmdb_details or {} # Add TMDB details (or empty dict if None)
+                            }
+                            final_recommendations.append(final_recommendation)
+
+                        return final_recommendations # Return list of recommendations with merged data
+                    else:
+                        st.error("Unexpected API response format: 'recommendations' list not found in JSON content.")
+                        st.code(api_content) # Show raw content for inspection
+                        return None
+
+                except json.JSONDecodeError as e_inner_json: # ... (Innermost JSON Error Handling - for api_content parsing) ...
+                    st.error(f"ERROR: Failed to parse JSON CONTENT from DeepSeek API (within 'choices').")
+                    st.error(f"This means the 'content' part of the API response, expected to be JSON, is not valid JSON.")
+                    st.error(f"JSONDecodeError details (parsing content): {e_inner_json}")
+                    st.code(api_content) # Display the raw CONTENT that FAILED to parse
+                    return None
+
+
+            else: # ... (No Choices Error Handling - Improved message) ...
+                st.error("ERROR: Unexpected DeepSeek API response structure - No 'choices' array found at top level.")
+                st.error("The API response is missing the top-level 'choices' array. This is unexpected structure.")
+                st.json(json_response) # Show the full json_response for debugging structure
                 return None
 
-        else: # ... (No Choices Error Handling - Improved message) ...
-            st.error("CRITICAL ERROR: Unexpected DeepSeek API response structure - No 'choices' array found.")
-            st.error("The API response did not contain the expected 'choices' array. This indicates a problem with the API call or response format.")
-            st.json(json_response) # Show the full json response for debugging structure
+
+        except json.JSONDecodeError as e_outer_json: # --- Outer JSON Error Handling - for response.json() parsing ---
+            st.error(f"CRITICAL ERROR: DeepSeek API response is NOT VALID JSON at the ROOT level!")
+            st.error(f"The entire API response is not valid JSON. This is a major problem. Check API endpoint, headers, and DeepSeek API status.")
+            st.error(f"JSONDecodeError details (root level parsing): {e_outer_json}")
+            st.code(api_content) # Display the raw TEXT response that FAILED to parse at root level
             return None
 
 
-    except requests.exceptions.RequestException as e: # ... (Request Exception Handling - More info) ...
-        st.error(f"CRITICAL ERROR: DeepSeek API request completely failed!")
-        st.error(f"This means the app could not even connect to the DeepSeek API endpoint. Check your network connection and API endpoint URL.")
-        st.error(f"Request exception details: {e}") # Show specific request exception details
+    except requests.exceptions.RequestException as e_request: # --- Request Exception Handling - Network or HTTP errors ---
+        st.error(f"CRITICAL ERROR: DeepSeek API request COMPLETELY FAILED!")
+        st.error(f"The app could not even complete the HTTP request to the DeepSeek API endpoint. This is likely a network issue, incorrect API endpoint URL, or a problem preventing connection.")
+        st.error(f"Request exception details: {e_request}") # Show specific request exception details
         return None
 
+
+    return None # Return None if any error occurred during API interaction
 
 
 st.title("🎬🌟 Chitra the Movie Recommender")
