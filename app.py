@@ -103,15 +103,14 @@ def generate_recommendations(liked_movie: str, liked_aspect: str, num_recommenda
                 response = requests.post(GEMINI_API_URL, params=params, json=payload, timeout=20)
                 response.raise_for_status()
                 resp_json = response.json()
-                st.write("Raw Gemini API response:", resp_json)
+                # Raw Gemini response hidden from user.
                 
                 candidates = resp_json.get("candidates")
                 if not candidates or not isinstance(candidates, list):
                     st.error("No candidates found in Gemini API response.")
                     return None
 
-                # Depending on the API version, the generated text might be nested under different keys.
-                # For this example, we expect the text under candidates[0]["content"]["parts"][0]["text"].
+                # Depending on the API version, the generated text might be nested differently.
                 candidate = candidates[0]
                 generated_text = ""
                 if "content" in candidate and "parts" in candidate["content"]:
