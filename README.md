@@ -1,3 +1,5 @@
+Update: The API has been Changed to GEMINI Flash 2.0 to manage the load better 
+
 # 🎬 Chitra - Your Streaming Sidekick
 
 ### Build 1.0 | Mesa School of Business | Tushar Nain
