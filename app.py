@@ -64,24 +64,24 @@ def fetch_tmdb_data(movie_title: str) -> Optional[Dict]:
         return None
 
 def generate_recommendations(liked_movie: str, liked_aspect: str, num_recommendations: int) -> Optional[List[Dict]]:
-    """Generates movie recommendations using the Gemini API free tier with a personalized prompt."""
+    """Generates movie recommendations using the Gemini API free tier with a neutral, advisory tone."""
     if not GEMINI_API_KEY:
         st.error("Gemini API key not found. Please check your .env file.")
         return None
 
-    # Revised prompt: personalized language directly addressing "you".
+    # Revised prompt: neutral and objective advisory tone.
     prompt = (
-        f"You are a movie recommendation expert. You know that you enjoyed '{liked_movie}' because you loved '{liked_aspect}'. "
-        f"Please recommend {num_recommendations} movies that share similar qualities and would resonate with you. "
-        "For each movie, provide a title, a brief 2-3 sentence description, and in the 'reasoning' field, include a personalized explanation that speaks directly to your taste. "
-        "Make sure to explicitly reference your love for the aspect you mentioned. "
+        f"You are a movie advisor with a neutral tone. Based on the movie '{liked_movie}', which you enjoyed for its focus on '{liked_aspect}', "
+        f"please recommend {num_recommendations} movies that would be good for someone with similar tastes. "
+        "For each movie, provide the title, a 2-3 sentence description that objectively outlines its content, and a reasoning that explains why "
+        f"this movie is a good match for someone who appreciates '{liked_aspect}'. Use neutral, advisory language as if you were suggesting a film to a friend. "
         "Return your answer strictly as valid JSON in the following format without any additional commentary:\n\n"
         '{\n'
         '  "recommendations": [\n'
         '    {\n'
         '      "title": "Movie Title",\n'
         '      "description": "2-3 sentence description",\n'
-        '      "reasoning": "Explain why this movie is a great match for you, referencing your love for \'{liked_aspect}\'"\n'
+        '      "reasoning": "A neutral explanation as to why this movie is a good choice for you, referencing your interest in \'{liked_aspect}\'"\n'
         '    }\n'
         '  ]\n'
         '}\n'
@@ -99,7 +99,7 @@ def generate_recommendations(liked_movie: str, liked_aspect: str, num_recommenda
     
     for attempt in range(MAX_RETRIES):
         try:
-            with st.spinner(f"Attempt {attempt + 1}/{MAX_RETRIES}: Doing my Data Dance and fetching recommendations..."):
+            with st.spinner(f"Attempt {attempt + 1}/{MAX_RETRIES}: Fetching recommendations..."):
                 response = requests.post(GEMINI_API_URL, params=params, json=payload, timeout=20)
                 response.raise_for_status()
                 resp_json = response.json()
@@ -124,6 +124,7 @@ def generate_recommendations(liked_movie: str, liked_aspect: str, num_recommenda
                     st.error("Empty text received from Gemini API.")
                     return None
 
+                # Remove markdown code fences if present.
                 if generated_text.startswith("```"):
                     lines = generated_text.splitlines()
                     cleaned_lines = [line for line in lines if not line.strip().startswith("```")]
@@ -157,10 +158,9 @@ st.title("🎬 Chitra | Your Streaming Sidekick")
 st.markdown(
     """
     Welcome to Chitra – your natural language movie recommender!  
-    Simply enter a movie you enjoyed and share what you liked about it (for example, the acting, storyline, or cinematography), 
-    and we’ll suggest movies that match your tastes.
-    
-    The more details you provide, the better the recommendations will be. Feel free to describe what you loved about the movie!
+    Enter a movie you enjoyed and share what you liked about it (for example, the acting, storyline, or cinematography), 
+    and we'll suggest movies that might suit your taste.  
+    The more details you provide, the more tailored and useful the recommendations will be.
     """
 )
 
@@ -176,7 +176,7 @@ if submit_button:
     else:
         recommendations = generate_recommendations(liked_movie, liked_aspect, num_recommendations)
         if recommendations:
-            st.success("Tada! Here are your personalized movie recommendations:")
+            st.success("Here are your personalized movie recommendations:")
             for idx, rec in enumerate(recommendations):
                 tmdb_data = fetch_tmdb_data(rec.get("title", ""))
                 with st.container():
