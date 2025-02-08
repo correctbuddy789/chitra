@@ -1,11 +1,14 @@
 import streamlit as st
+import os
+from dotenv import load_dotenv
+from openai import OpenAI
+import time
+from typing import Optional, List, Dict  # Import typing hints
+
+# TMDB API handling (remains mostly the same)
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
-import json
-import time
-import os
-from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -13,7 +16,7 @@ load_dotenv()
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 TMDB_API_KEY = os.getenv("TMDB_API_KEY")
 
-DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
+# No longer need DEEPSEEK_API_URL, the OpenAI library handles this
 TMDB_API_BASE_URL = "https://api.themoviedb.org/3"
 TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500"
 PLACEHOLDER_IMAGE_URL = "https://via.placeholder.com/500x750?text=Poster+Not+Available"
@@ -23,7 +26,7 @@ RETRY_DELAY = 2  # seconds
 
 # --- Helper Functions ---
 
-def create_session():
+def create_requests_session():  # Kept for TMDB
     """Creates a requests session with retry logic."""
     session = requests.Session()
     retries = Retry(total=MAX_RETRIES, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504])
@@ -31,12 +34,12 @@ def create_session():
     session.mount("https://", HTTPAdapter(max_retries=retries))
     return session
 
-def fetch_tmdb_data(movie_title):
+def fetch_tmdb_data(movie_title: str) -> Optional[Dict]:
     """Fetches movie details (poster URL and year) from TMDB."""
     if not TMDB_API_KEY:
-        return None  # Handle missing API key
+        return None
 
-    session = create_session()
+    session = create_requests_session()
     try:
         url = f"{TMDB_API_BASE_URL}/search/movie?api_key={TMDB_API_KEY}&query={movie_title}"
         response = session.get(url, timeout=10)
@@ -46,27 +49,27 @@ def fetch_tmdb_data(movie_title):
         if data['results']:
             movie = data['results'][0]
             poster_path = movie.get('poster_path')
-            year = movie.get('release_date', '').split('-')[0]  # Extract year
+            year = movie.get('release_date', '').split('-')[0]
             return {
                 "poster_url": f"{TMDB_IMAGE_BASE_URL}{poster_path}" if poster_path else PLACEHOLDER_IMAGE_URL,
                 "year": year if year else "N/A",
             }
-        return None  # No results found
+        return None
     except requests.exceptions.RequestException as e:
-        print(f"TMDB API Error: {e}")  # Log the error
+        print(f"TMDB API Error: {e}")
         return None
 
-def generate_recommendations(liked_movie, liked_aspect, num_recommendations):
-    """Generates movie recommendations using the DeepSeek API."""
+def generate_recommendations(liked_movie: str, liked_aspect: str, num_recommendations: int) -> Optional[List[Dict]]:
+    """Generates movie recommendations using the DeepSeek API (via OpenAI library)."""
     if not DEEPSEEK_API_KEY:
-        return None  # Handle missing API key
+        st.error("DeepSeek API key not found. Please check your .env file.")
+        return None
 
-    headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
-    data = {
-        "model": "deepseek-reasoner",
-        "messages": [
-            {"role": "system", "content": "You are a movie recommendation expert. Provide recommendations in valid JSON format."},
-            {"role": "user", "content": f"""Based on the movie '{liked_movie}' that the user liked because '{liked_aspect}',
+    client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com/v1")
+
+    messages = [
+        {"role": "system", "content": "You are a movie recommendation expert. Provide recommendations in valid JSON format."},
+        {"role": "user", "content": f"""Based on the movie '{liked_movie}' that the user liked because '{liked_aspect}',
 recommend {num_recommendations} movies, ranked by relevance. Format as JSON with this structure:
 {{
     "recommendations": [
@@ -77,53 +80,39 @@ recommend {num_recommendations} movies, ranked by relevance. Format as JSON with
         }}
     ]
 }}"""}
-        ],
-    }
+    ]
 
-    session = create_session()
     for attempt in range(MAX_RETRIES):
         try:
-            response = session.post(DEEPSEEK_API_URL, headers=headers, json=data, timeout=30)
-            response.raise_for_status()  # Raise HTTPError for bad responses (4xx or 5xx)
-            response_json = response.json()
+            with st.spinner(f"Attempt {attempt + 1}/{MAX_RETRIES}: Getting recommendations..."):
+                response = client.chat.completions.create(
+                    model="deepseek-chat",  # Use the correct model name
+                    messages=messages,
+                    stream=False,  # As per the documentation
+                    max_tokens=1000, # Added max token and temperature
+                    temperature=0.7
+                )
 
-            # Check for 'choices' and get the content.  More robust than assuming the structure.
-            if 'choices' in response_json and response_json['choices']:
-                content = response_json['choices'][0]['message']['content'].strip()
+                # The response structure is different when using the OpenAI library
+                content = response.choices[0].message.content
+                recommendations = json.loads(content)['recommendations']
+                return recommendations
 
-                # Robust JSON parsing with error handling:
-                try:
-                    if content.startswith("```json"):
-                        content = content[7:]
-                    if content.endswith("```"):
-                        content = content[:-3]
-                    recommendations = json.loads(content)['recommendations']
-                    return recommendations  # Successful parsing!
-                except json.JSONDecodeError as e:
-                    st.error(f"JSON Decode Error: {e}")
-                    st.text("Raw API Response (for debugging):")
-                    st.code(content, language='text')
-                    return None # Return after the error message
-
-
-            else:
-                st.error("DeepSeek API returned an unexpected response format.")
-                st.text("Raw API Response (for debugging):")
-                st.code(response.text, language='text')  # Show the raw response
-                return None
-
-
-        except requests.exceptions.RequestException as e:
+        except Exception as e:  # Catch all OpenAI and other exceptions
             if attempt < MAX_RETRIES - 1:
                 st.warning(f"Request failed (attempt {attempt + 1}): {e}. Retrying in {RETRY_DELAY * (2 ** attempt)} seconds...")
-                time.sleep(RETRY_DELAY * (2 ** attempt))  # Exponential backoff
+                time.sleep(RETRY_DELAY * (2 ** attempt))
             else:
-                st.error(f"Request failed after multiple retries: {e}")
+                st.error(f"Failed to get recommendations after multiple retries: {e}")
+                st.text("Raw API Response (if available):")
+                if 'response' in locals() and hasattr(response, 'text'): # Check to see if we have it
+                    st.code(response.text, language='text')  # Show raw response
                 return None
     return None
 
 
-# --- Streamlit App ---
+
+# --- Streamlit App --- (Remains mostly the same)
 
 st.title("🎬🌟 Chitra the Movie Recommender")
 
@@ -149,7 +138,7 @@ if submit_button:
                         if tmdb_data:
                             st.image(tmdb_data['poster_url'], width=150)
                         else:
-                            st.image(PLACEHOLDER_IMAGE_URL, width=150) #Default show of image
+                            st.image(PLACEHOLDER_IMAGE_URL, width=150)
                     with col2:
                         title = f"{i+1}. {rec['title']}"
                         year = f" ({tmdb_data['year']})" if tmdb_data else ""
@@ -158,8 +147,8 @@ if submit_button:
                         st.markdown("**Why you'll like it:**")
                         st.write(rec['reasoning'])
                 st.divider()
-        elif recommendations is None: # Explicit check since empty list is falsy
-            st.error("Could not retrieve recommendations. Please check your API keys or try again later.")
+        elif recommendations is None:
+            st.error("Could not retrieve recommendations.  Please try again later.")
 
 st.markdown("---")
 st.markdown("Built with ❤️ by [Tushar](https://www.linkedin.com/in/tusharnain/) - Mesa School of Business")
