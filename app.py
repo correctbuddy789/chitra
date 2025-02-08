@@ -81,7 +81,7 @@ def get_movie_recommendations(liked_movie, liked_aspect, num_recommendations):
 
     prompt = f""" # ... (Prompt - same as in the ranked version) ...
     Based on the movie '{liked_movie}' that the user liked because '{liked_aspect}',
-    please recommend {num_recommendations} movies, *ranked in order of relevance (most relevant first)*.
+    please recommend {num_recommendations} movies, **ranked in order of relevance (most relevant first)**.
     For each recommendation, provide:
     - Movie Title:
     - Brief Description: (around 2-3 sentences)
@@ -89,7 +89,7 @@ def get_movie_recommendations(liked_movie, liked_aspect, num_recommendations):
 
     Format your response as a JSON. The top level should be a list named "recommendations".
     Each item in the list should be a JSON object with keys: "title", "description", and "reasoning".
-    Ensure the "recommendations" list is *ordered from most to least relevant.*
+    Ensure the "recommendations" list is **ordered from most to least relevant.**
     """
 
     data = { # ... (Data payload - same as before) ...
@@ -107,7 +107,7 @@ def get_movie_recommendations(liked_movie, liked_aspect, num_recommendations):
 
         if 'choices' in json_response and json_response['choices']:
             api_content = json_response['choices'][0]['message']['content']
-            api_content = api_content.replace("json", "").replace("", "").strip()
+            api_content = api_content.replace("`json", "").replace("`", "").strip()
 
             try:
                 recommendation_data = json.loads(api_content)
@@ -150,7 +150,7 @@ def get_movie_recommendations(liked_movie, liked_aspect, num_recommendations):
 
 st.title("🎬🌟 Chitra the Movie Recommender")
 
-liked_movie = st.text_input("Enter a movie you liked:")
+liked_movie = st.text_input("Enter a movie/TV Series you liked:")
 liked_aspect = st.text_input("What did you like about this movie (e.g., 'the actors', 'suspense', 'visuals')?:")
 num_recommendations = st.number_input("How many movie recommendations do you want?", min_value=1, max_value=5, value=3)
 
@@ -162,7 +162,7 @@ if st.button("Get Recommendations"):
         recommendations = get_movie_recommendations(liked_movie, liked_aspect, num_recommendations)
 
         if recommendations:
-            st.success("Movie Recommendations (Ranked):")
+            st.success("Tada, Here we go! 🎉")
             for index, recommendation in enumerate(recommendations):
                 rank = index + 1
                 tmdb_details = recommendation.get('tmdb_details', {}) # Safely get TMDB details
@@ -177,17 +177,17 @@ if st.button("Get Recommendations"):
                         st.image(PLACEHOLDER_IMAGE_URL, width=150) # Placeholder if no poster
 
                 with col2:
-                    st.markdown(f"*Rank {rank}: {recommendation.get('title', 'Movie Title Not Found')}*")
+                    st.markdown(f"**Rank {rank}: {recommendation.get('title', 'Movie Title Not Found')}**")
                     year = tmdb_details.get('year', 'N/A')
                     year_display = f" ({year})" if year != 'N/A' else "" # Add year in parenthesis if available
-                    st.markdown(f"{recommendation.get('title', 'Movie Title Not Found')}{year_display}") # Italic title with year
+                    st.markdown(f"*{recommendation.get('title', 'Movie Title Not Found')}*{year_display}") # Italic title with year
 
                     st.write(recommendation.get('description', 'Description not available.'))
-                    st.write(f"Why you will like it?: {recommendation.get('reasoning', 'Reasoning not available.')}")
+                    st.write(f"*Why you will like it?*: {recommendation.get('reasoning', 'Reasoning not available.')}")
 
 
                 st.markdown("---")
         else:
             st.error("Failed to get movie recommendations. Please check the error messages above.")
 
-st.markdown("Built with ❤ by [Tushar](https://www.linkedin.com/in/tusharnain/) - Mesa School of Business")
+st.markdown("Built with ❤️ by [Tushar](https://www.linkedin.com/in/tusharnain/) @ Mesa School of Business")
