@@ -52,14 +52,14 @@ def get_tmdb_movie_details(movie_title: str) -> Optional[Dict]:
             year = movie_data.get('release_date', '')[:4] if movie_data.get('release_date') else 'N/A'
 
             return {
-                "poster_url": f"{TMDB_IMAGE_BASE_URL}{poster_path}" if poster_path else None,
+                "poster_url": f"{TMDB_IMAGE_BASE_URL}{poster_path}" if poster_path else PLACEHOLDER_IMAGE_URL, # Use placeholder if no poster
                 "year": year
             }
     except requests.exceptions.RequestException as e:
         print(f"TMDB API error for '{movie_title}': {e}")
     except Exception as e:
         print(f"Unexpected error getting TMDB data: {e}")
-    
+
     return None
 
 def get_movie_recommendations(liked_movie: str, liked_aspect: str, num_recommendations: int) -> Optional[List[Dict]]:
@@ -74,7 +74,7 @@ def get_movie_recommendations(liked_movie: str, liked_aspect: str, num_recommend
     }
 
     system_message = """You are a movie recommendation expert. Provide recommendations in valid JSON format."""
-    
+
     user_message = f"""Based on the movie '{liked_movie}' that the user liked because '{liked_aspect}',
     recommend {num_recommendations} movies, ranked by relevance. Format as JSON with this structure:
     {{
@@ -105,27 +105,33 @@ def get_movie_recommendations(liked_movie: str, liked_aspect: str, num_recommend
         try:
             with st.spinner(f"Attempt {attempt + 1}/{max_retries}: Getting recommendations..."):
                 response = session.post(
-                    DEEPSEEK_API_URL, 
-                    headers=headers, 
+                    DEEPSEEK_API_URL,
+                    headers=headers,
                     json=data,
                     timeout=(10, 60)  # (connect timeout, read timeout)
                 )
                 response.raise_for_status()
-                
+
                 response_data = response.json()
                 if not response_data.get('choices'):
                     raise ValueError("No recommendations received from API")
 
                 content = response_data['choices'][0]['message']['content']
-                
-                # Clean the response content and parse JSON
-                content = content.strip()
-                if content.startswith("```json"):
-                    content = content[7:]
-                if content.endswith("```"):
-                    content = content[:-3]
-                    
-                recommendations = json.loads(content)['recommendations']
+                # print(f"Raw content from API: {content}")  # Debug: Print raw content
+
+                # Clean the response content and parse JSON.  Try/except for JSON parsing.
+                try:
+                    content = content.strip()
+                    if content.startswith("```json"):
+                        content = content[7:]
+                    if content.endswith("```"):
+                        content = content[:-3]
+                    recommendations = json.loads(content)['recommendations']
+                except json.JSONDecodeError as e:
+                    st.error(f"JSONDecodeError: {e}")
+                    st.text("Raw API Response (for debugging):")
+                    st.code(content, language="text") # Show the raw response, very helpful for debugging
+                    return None  # Exit the function.  No point continuing if JSON is bad.
 
                 # Fetch TMDB details for each recommendation
                 final_recommendations = []
@@ -147,17 +153,17 @@ def get_movie_recommendations(liked_movie: str, liked_aspect: str, num_recommend
                 st.error("Failed to get recommendations after multiple attempts. Please try again later.")
         except requests.exceptions.RequestException as e:
             st.error(f"DeepSeek API request failed: {str(e)}")
-            break
-        except (json.JSONDecodeError, ValueError) as e:
+            return None  # Important:  Return None after an exception, or the caller won't know it failed.
+        except (json.JSONDecodeError, ValueError, KeyError) as e:  # Catch KeyError too
             st.error(f"Failed to process API response: {str(e)}")
-            if isinstance(e, json.JSONDecodeError):
-                st.code(content)
-            break
-        except Exception as e:
+            st.text("Raw API Response (for debugging):")
+            st.code(content, language="text")  # Display the raw response for debugging
+            return None  # Exit the function, don't continue
+        except Exception as e: #Catch the exception and prevent the crashing of app
             st.error(f"Unexpected error: {str(e)}")
-            break
-    
-    return None
+            return None
+    return None  # If all retries failed.
+
 
 # Streamlit UI
 st.title("🎬🌟 Chitra the Movie Recommender")
@@ -166,9 +172,9 @@ with st.form("movie_form"):
     liked_movie = st.text_input("Enter a movie you liked:")
     liked_aspect = st.text_input("What did you like about this movie?")
     num_recommendations = st.number_input(
-        "Number of recommendations:", 
-        min_value=1, 
-        max_value=5, 
+        "Number of recommendations:",
+        min_value=1,
+        max_value=5,
         value=3
     )
     submit_button = st.form_submit_button("Get Recommendations")
@@ -184,14 +190,11 @@ if submit_button:
             for idx, rec in enumerate(recommendations, 1):
                 with st.container():
                     col1, col2 = st.columns([1, 3])
-                    
+
                     with col1:
                         poster_url = rec.get('tmdb_details', {}).get('poster_url')
-                        if poster_url:
-                            st.image(poster_url, width=150)
-                        else:
-                            st.image(PLACEHOLDER_IMAGE_URL, width=150)
-                    
+                        st.image(poster_url, width=150)  # No need for the conditional, get_tmdb_movie_details handles it.
+
                     with col2:
                         year = rec.get('tmdb_details', {}).get('year', '')
                         title_display = f"{rec['title']} ({year})" if year else rec['title']
@@ -199,7 +202,7 @@ if submit_button:
                         st.write(rec['description'])
                         st.markdown("**Why you'll like it:**")
                         st.write(rec['reasoning'])
-                    
+
                     st.divider()
 
 st.markdown("---")
