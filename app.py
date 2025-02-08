@@ -156,7 +156,7 @@ def generate_recommendations(liked_movie: str, liked_aspect: str, num_recommenda
 # --- Streamlit App Layout ---
 
 # Introduction and usage instructions
-st.title("🎬🌟 Chitra | Your Streaming Sidekick")
+st.title("🎬 Chitra | Your Streaming Sidekick")
 st.markdown(
     """
     Welcome to Chitra – your natural language movie recommender!  
