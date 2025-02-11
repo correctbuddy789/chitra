@@ -205,4 +205,4 @@ if submit_button:
             st.error("Could not retrieve recommendations. Please try again later.")
 
 st.markdown("---")
-st.markdown("Built with ❤️ by [Tushar](https://www.linkedin.com/in/tusharnain/) - Mesa School of Business")
+st.markdown("Built with ❤️ by [Tushar](https://www.linkedin.com/in/tusharnain/) @ Mesa School of Business")
